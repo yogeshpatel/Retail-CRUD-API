@@ -1,44 +1,48 @@
 package com.example.retail.service;
 
-import com.example.retail.config.TestDataLoader;
 import com.example.retail.dto.*;
 import com.example.retail.exception.BusinessRuleException;
 import com.example.retail.exception.ResourceNotFoundException;
 import com.example.retail.model.Customer;
 import com.example.retail.model.CustomerOrder;
 import com.example.retail.model.Offer;
+import com.example.retail.repository.CustomerOrderRepository;
+import com.example.retail.repository.CustomerRepository;
+import com.example.retail.repository.OfferRepository;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.List;
 
 @Service
+@Transactional(readOnly = true)   // default: read-only for all methods
 public class RetailService {
 
-    private final Map<Long, Customer> customers = new ConcurrentHashMap<>();
-    private final Map<Long, CustomerOrder> orders = new ConcurrentHashMap<>();
-    private final Map<String, Offer> offers = new ConcurrentHashMap<>();
+    private final CustomerRepository      customerRepository;
+    private final CustomerOrderRepository orderRepository;
+    private final OfferRepository         offerRepository;
 
-    public RetailService(TestDataLoader dataLoader) {
-        dataLoader.loadCustomers().forEach(c -> customers.put(c.getId(), c));
-        dataLoader.loadOrders().forEach(o -> orders.put(o.getId(), o));
-        dataLoader.loadOffers().forEach(of -> offers.put(of.getCode(), of));
+    public RetailService(CustomerRepository customerRepository,
+                         CustomerOrderRepository orderRepository,
+                         OfferRepository offerRepository) {
+        this.customerRepository = customerRepository;
+        this.orderRepository    = orderRepository;
+        this.offerRepository    = offerRepository;
     }
 
+    // ── Customers ────────────────────────────────────────────────────────────
+
     public List<Customer> getAllCustomers() {
-        return customers.values()
-                .stream()
-                .sorted(Comparator.comparing(Customer::getId))
-                .toList();
+        return customerRepository.findAll(Sort.by("id"));
     }
 
     public CustomerProfileResponse getCustomerProfile(Long id) {
         Customer customer = findCustomer(id);
 
-        List<OrderResponse> orderHistory = orders.values()
+        List<OrderResponse> orderHistory = orderRepository
+                .findByCustomerIdOrderByIdAsc(id)
                 .stream()
-                .filter(order -> order.getCustomerId().equals(id))
-                .sorted(Comparator.comparing(CustomerOrder::getId))
                 .map(this::toOrderResponse)
                 .toList();
 
@@ -53,12 +57,12 @@ public class RetailService {
         );
     }
 
-    public OfferResponse getOffer(String code) {
-        Offer offer = offers.get(code.toUpperCase());
+    // ── Offers ───────────────────────────────────────────────────────────────
 
-        if (offer == null) {
-            throw new ResourceNotFoundException("Offer not found for code: " + code);
-        }
+    public OfferResponse getOffer(String code) {
+        Offer offer = offerRepository.findById(code.toUpperCase())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Offer not found for code: " + code));
 
         return new OfferResponse(
                 offer.getCode(),
@@ -67,17 +71,21 @@ public class RetailService {
         );
     }
 
+    // ── Loyalty ──────────────────────────────────────────────────────────────
+
+    @Transactional          // override: write operation
     public LoyaltyUpdateResponse updateLoyalty(Long customerId, LoyaltyUpdateRequest request) {
         Customer customer = findCustomer(customerId);
 
         int previous = customer.getLoyaltyPoints();
-        int updated = previous + request.pointsDelta();
+        int updated  = previous + request.pointsDelta();
 
         if (updated < 0) {
             throw new BusinessRuleException("Loyalty points cannot become negative");
         }
 
         customer.setLoyaltyPoints(updated);
+        customerRepository.save(customer);   // explicit save for clarity
 
         return new LoyaltyUpdateResponse(
                 customer.getId(),
@@ -88,14 +96,12 @@ public class RetailService {
         );
     }
 
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
     private Customer findCustomer(Long id) {
-        Customer customer = customers.get(id);
-
-        if (customer == null) {
-            throw new ResourceNotFoundException("Customer not found for id: " + id);
-        }
-
-        return customer;
+        return customerRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Customer not found for id: " + id));
     }
 
     private OrderResponse toOrderResponse(CustomerOrder order) {
@@ -106,5 +112,4 @@ public class RetailService {
                 order.getStatus()
         );
     }
-
 }

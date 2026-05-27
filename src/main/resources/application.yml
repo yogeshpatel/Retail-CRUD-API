@@ -2,6 +2,29 @@ spring:
   application:
     name: retail-crud-no-docker-no-db
 
+  # ── H2 in-memory datasource ──────────────────────────────────────────────
+  datasource:
+    url: jdbc:h2:mem:retaildb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ''
+
+  # ── JPA / Hibernate ──────────────────────────────────────────────────────
+  jpa:
+    hibernate:
+      ddl-auto: create-drop          # schema created by Hibernate on start
+    show-sql: false
+    defer-datasource-initialization: true   # run data.sql AFTER schema is created
+    properties:
+      hibernate:
+        format_sql: true
+
+  # ── H2 web console (http://localhost:8080/h2-console) ───────────────────
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
 server:
   port: 8080
 
@@ -13,3 +36,10 @@ management:
   endpoint:
     health:
       show-details: always
+
+# ── Simulated DB latency ─────────────────────────────────────────────────
+app:
+  db:
+    simulate-latency: true
+    min-delay-ms: 20
+    max-delay-ms: 80
