@@ -1,0 +1,4 @@
+code,discountPercent,active
+WELCOME10,10,true
+EXPIRED5,5,false
+SUMMER25,25,true

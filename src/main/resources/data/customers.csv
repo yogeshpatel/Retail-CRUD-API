@@ -1,0 +1,11 @@
+id,name,email,loyaltyPoints,active,joinedDate
+1,Alice Smith,alice@example.com,1250,true,2021-03-15
+2,Bob Jones,bob@example.com,45,false,2022-07-20
+3,Charlie Retail,charlie@example.com,875,true,2020-11-05
+4,Diana Prince,diana@example.com,320,true,2021-09-12
+5,Ethan Hunt,ethan@example.com,3200,true,2019-06-01
+6,Fiona Green,fiona@example.com,150,true,2023-01-18
+7,George Martin,george@example.com,90,true,2022-04-30
+8,Hannah White,hannah@example.com,560,true,2021-12-08
+9,Ivan Drago,ivan@example.com,0,false,2023-05-22
+10,Julia Roberts,julia@example.com,200,false,2020-08-14
