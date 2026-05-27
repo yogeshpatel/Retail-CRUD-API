@@ -2,6 +2,7 @@ package com.example.retail.service;
 
 import com.example.retail.dto.*;
 import com.example.retail.exception.BusinessRuleException;
+import com.example.retail.exception.DuplicateResourceException;
 import com.example.retail.exception.ResourceNotFoundException;
 import com.example.retail.model.Customer;
 import com.example.retail.model.CustomerOrder;
@@ -59,16 +60,44 @@ public class RetailService {
 
     // ── Offers ───────────────────────────────────────────────────────────────
 
-    public OfferResponse getOffer(String code) {
-        Offer offer = offerRepository.findById(code.toUpperCase())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Offer not found for code: " + code));
+    public List<OfferResponse> getAllOffers() {
+        return offerRepository.findAll(Sort.by("code"))
+                .stream()
+                .map(this::toOfferResponse)
+                .toList();
+    }
 
-        return new OfferResponse(
-                offer.getCode(),
-                offer.getDiscountPercent(),
-                offer.isActive()
-        );
+    public OfferResponse getOffer(String code) {
+        return toOfferResponse(findOffer(code));
+    }
+
+    @Transactional
+    public OfferResponse createOffer(CreateOfferRequest request) {
+        String code = request.code().toUpperCase();
+
+        if (offerRepository.existsById(code)) {
+            throw new DuplicateResourceException(
+                    "Offer already exists with code: " + code);
+        }
+
+        Offer offer = new Offer(code, request.discountPercent(), request.active());
+        offerRepository.save(offer);
+        return toOfferResponse(offer);
+    }
+
+    @Transactional
+    public OfferResponse updateOffer(String code, UpdateOfferRequest request) {
+        Offer offer = findOffer(code);
+        offer.setDiscountPercent(request.discountPercent());
+        offer.setActive(request.active());
+        offerRepository.save(offer);
+        return toOfferResponse(offer);
+    }
+
+    @Transactional
+    public void deleteOffer(String code) {
+        findOffer(code);           // throws 404 if not found
+        offerRepository.deleteById(code.toUpperCase());
     }
 
     // ── Loyalty ──────────────────────────────────────────────────────────────
@@ -104,12 +133,26 @@ public class RetailService {
                         "Customer not found for id: " + id));
     }
 
+    private Offer findOffer(String code) {
+        return offerRepository.findById(code.toUpperCase())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Offer not found for code: " + code));
+    }
+
     private OrderResponse toOrderResponse(CustomerOrder order) {
         return new OrderResponse(
                 order.getId(),
                 order.getOrderNumber(),
                 order.getTotalAmount(),
                 order.getStatus()
+        );
+    }
+
+    private OfferResponse toOfferResponse(Offer offer) {
+        return new OfferResponse(
+                offer.getCode(),
+                offer.getDiscountPercent(),
+                offer.isActive()
         );
     }
 }

@@ -34,6 +34,11 @@ public class RetailController {
         return retailService.getCustomerProfile(id);
     }
 
+    @GetMapping("/offers")
+    public List<OfferResponse> getAllOffers() {
+        return retailService.getAllOffers();
+    }
+
     @GetMapping("/offers/{code}")
     public OfferResponse getOffer(@PathVariable String code) {
         return retailService.getOffer(code);
